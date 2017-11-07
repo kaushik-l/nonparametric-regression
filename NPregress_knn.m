@@ -1,4 +1,4 @@
-function [x,f] = NPregress_knn(xt,yt,k,nbootstraps,dt)
+function [x,f] = NPregress_knn(xt,yt,dt,k,nbins,nbootstraps)
 
 % NPREGRESS_KNN Performs nonparametric k-nearest-neighbors regression
 %   [x,f,pval] = NPregress_knn(xt,yt,binedges,nbootstraps,dt) performs 
@@ -7,23 +7,30 @@ function [x,f] = NPregress_knn(xt,yt,k,nbootstraps,dt)
 %
 % 'nbootstraps' specifies the number of bootstrap repetitions used to 
 % compute standard error of the mean of the estimator.
-if nargin<4, nbootstraps = []; dt = 1;
-elseif nargin<5, dt = 1; end
-if isempty(dt), dt = 1; end
-if ~isempty(nbootstraps), compute_sem = 1; end
+if nargin<6, nbootstraps = []; end
+if nargin<5, nbins = []; end
+if nargin<4, k = []; end
+if nargin<3, dt = []; end
 
-[xt,indx] = sort(xt);
-yt = yt(indx);
+if isempty(dt), dt = 1; end
 n = length(xt);
-nbins = length(k:k:n-k); % binning informed by data (resolution = k) --> finer resolution => slower
+if isempty(k), k = round(sqrt(n)); end % k=sqrt(n) where n is the total no. of observations
+if isempty(nbins), nbins = length(k:k:n-k); end % binning informed by data (resolution = k) --> finer resolution => slower
+if ~isempty(nbootstraps), compute_sem = 1; end
+p_binedges = linspace(0,100,nbins+1); % divide datapoints into 'nbins' number of quantiles
+p_bincntrs = 0.5*(p_binedges(1:end-1) + p_binedges(2:end)); % percentile scores of individual quantiles
+
+%% sort data for efficient search
+[xt,indx] = sort(xt); yt = yt(indx);
 
 %% determine tuning function
 if ~compute_sem % just return the means
-    xval = xt(k:k:n-k); % estimate f(x) at every kth observation in x
+    xval = prctile(xt(k:n-k),p_bincntrs);
     fval = zeros(nbins,1);
     for i=1:length(xval)
-        xi = xt(i*k - (k-1):i*k + k); % sufficient to search +/-k elements around xval(i)
-        yi = yt(i*k - (k-1):i*k + k);
+        [~,nearestindx] = min(abs(xt-xval(i)));
+        xi = xt(nearestindx - (k-1):nearestindx + k); % sufficient to search +/-k elements around bincentre
+        yi = yt(nearestindx - (k-1):nearestindx + k);
         fval(i) = sum(yi(knnsearch(xi,xval(i),'k',k)))/(k*dt); % k-nearest
     end
     x.mu = xval;
@@ -34,10 +41,11 @@ else % obtain both mean and sem by bootstrapping (slow)
     for j=1:nbootstraps
         sampindx = sort(randsample(1:n,n,true));  % sample with replacement
         xt_samp = xt(sampindx); yt_samp = yt(sampindx);
-        x_mu(j,:) = xt_samp(k:k:n-k); % estimate f(x) at every kth observation in x
+        x_mu(j,:) = prctile(xt_samp(k:n-k),p_bincntrs);
         for i=1:length(x_mu(j,:))
-            xi = xt_samp(i*k - (k-1):i*k + k); % sufficient to search +/-k elements around xval(i)
-            yi = yt_samp(i*k - (k-1):i*k + k);
+            [~,nearestindx] = min(abs(xt_samp-x_mu(j,i)));
+            xi = xt_samp(nearestindx - (k-1):nearestindx + k); % sufficient to search +/-k elements around bincentre
+            yi = yt_samp(nearestindx - (k-1):nearestindx + k);
             f_mu(j,i) = sum(yi(knnsearch(xi,x_mu(j,i),'k',k)))/(k*dt); % k-nearest
         end
     end

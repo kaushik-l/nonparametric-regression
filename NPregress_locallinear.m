@@ -1,4 +1,4 @@
-function [x,f] = NPregress_locallinear(xt,yt,kernel,bandwidth,nbootstraps,dt)
+function [x,f] = NPregress_locallinear(xt,yt,dt,kernel,bandwidth,nbins,nbootstraps)
 
 % NPREGRESS_LOCALLINEAR Performs nonparametric local linear regression
 %   [x,f,pval] = NPregress_nw(xt,yt,kernel,nbootstraps,dt) performs 
@@ -7,13 +7,18 @@ function [x,f] = NPregress_locallinear(xt,yt,kernel,bandwidth,nbootstraps,dt)
 %
 % 'nbootstraps' specifies the number of bootstrap repetitions used to 
 % compute standard error of the mean of the estimator.
-if nargin<4, bandwidth = []; nbootstraps = []; dt = 1;
-elseif nargin<5, nbootstraps = []; dt = 1;
-elseif nargin<6, dt = 1;
-end
+if nargin<7, nbootstraps = []; end
+if nargin<6, nbins = []; end
+if nargin<5, bandwidth = []; end
+if nargin<4, kernel = []; end
+if nargin<3, dt = []; end
+
 if isempty(dt), dt = 1; end
+n = length(xt);
+if isempty(kernel), kernel = 'Gaussian'; end
+if isempty(bandwidth), bandwidth = (2.5/100)*range(xt); end % kernel bandwidth is 2.5% of the total range
+if isempty(nbins), nbins = round(range(xt)/bandwidth); end % values of x at which to estimate f(x) -- 1 point per bandwidth
 if ~isempty(nbootstraps), compute_sem = 1; end
-if isempty(bandwidth), bandwidth = range(xt)/50; end % kernel bandwidth is 2% of the total range
 
 %% define kernel function
 if strcmp(kernel,'Uniform'), kernel = @(x,mu,bandwidth) (1/2)*(abs((x - mu)/bandwidth) < 1);
@@ -22,12 +27,10 @@ elseif strcmp(kernel,'Biweight'), kernel = @(x,mu,bandwidth) (15/16)*((1-((x - m
 elseif strcmp(kernel,'Gaussian'), kernel = @(x,mu,bandwidth) exp(-(((x - mu)/bandwidth).^2)/2);
 end
 
-n = length(xt);
-nbins = round(range(xt)/bandwidth); % values of x at which to estimate f(x) -- 1 point per bandwidth
-
 %% determine tuning function
 if ~compute_sem % just return the means
-    xval = linspace(min(xt),max(xt),nbins);
+    binedges = linspace(min(xt),max(xt),nbins+1);
+    xval = 0.5*(binedges(1:end-1) + binedges(2:end));
     fval = zeros(nbins,1);
     for i=1:nbins
         s_0 = sum(kernel(xval(i),xt,bandwidth));
@@ -46,7 +49,9 @@ else % obtain both mean and sem by bootstrapping (slow)
     for j=1:nbootstraps
         sampindx = sort(randsample(1:n,n,true));  % sample with replacement
         xt_samp = xt(sampindx); yt_samp = yt(sampindx);
-        xval = linspace(min(xt_samp),max(xt_samp),nbins); fval = zeros(1,nbins);
+        binedges = linspace(min(xt_samp),max(xt_samp),nbins+1);
+        xval = 0.5*(binedges(1:end-1) + binedges(2:end));
+        fval = zeros(1,nbins);
         for i=1:nbins
             s_0 = sum(kernel(xval(i),xt_samp,bandwidth));
             s_1 = sum(kernel(xval(i),xt_samp,bandwidth).*(xt_samp - xval(i)));
