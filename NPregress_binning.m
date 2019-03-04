@@ -1,4 +1,4 @@
-function [x,f,pval] = NPregress_binning(xt,yt,dt,nbins,nbootstraps)
+function [x,f,pval] = NPregress_binning(xt,yt,dt,nbins,nbootstraps,binrange)
 
 % NPREGRESS_BINNING Performs nonparametric regression by binning
 %   [x,f,pval] = NPregress_binning(xt,yt,binedges,nbootstraps,dt) performs 
@@ -13,8 +13,9 @@ if nargin<3, dt = []; end
 
 if isempty(dt), dt = 1; end
 if isempty(nbins), nbins = 10; end
-if ~isempty(nbootstraps), compute_sem = 1; end
-binedges = linspace(min(xt),max(xt),nbins+1);
+if ~isempty(nbootstraps), compute_sem = 1; else, compute_sem = 0; end
+if isempty(binrange), binedges = linspace(min(xt),max(xt),nbins+1);
+else, binedges = linspace(binrange(1),binrange(2),nbins+1); end
 
 %% test statistical significance of tuning
 xval = cell(nbins,1);
@@ -41,8 +42,8 @@ else % obtain both mean and sem by bootstrapping (slow)
         indx = find(xt>binedges(i) & xt<binedges(i+1));
         for j=1:nbootstraps
             sampindx = randsample(indx,length(indx),true); % sample with replacement
-            x_mu(j,i) = mean(xt(sampindx));
-            f_mu(j,i) = mean(yt(sampindx)/dt);
+            x_mu(j,i) = nanmean(xt(sampindx));
+            f_mu(j,i) = nanmean(yt(sampindx)/dt);
         end
     end
     x.mu = mean(x_mu);

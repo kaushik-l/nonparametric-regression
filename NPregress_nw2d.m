@@ -17,7 +17,7 @@ xt1 = xt(:,1); xt2 = xt(:,2);
 n = length(xt1);
 if isempty(kernel), kernel = 'Gaussian'; end
 if isempty(bandwidth), bandwidth = [(2.5/100)*range(xt1) ; (2.5/100)*range(xt2)]; end
-if isempty(nbins), nbins = [round(range(xt1)/bandwidth); round(range(xt2)/bandwidth)]; end
+if isempty(nbins), nbins = [round(range(xt1)/bandwidth(1)); round(range(xt2)/bandwidth(2))]; end
 
 %% define kernel function
 if strcmp(kernel,'Uniform'), kernel = @(x,mu,bandwidth) (1/2)*(abs((x - mu)/bandwidth) < 1);

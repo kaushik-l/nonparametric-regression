@@ -28,4 +28,4 @@ for i=1:nbins1
     end
 end
 x.mu = [bincntrs1 ; bincntrs2];
-f.mu = cellfun(@mean,fval);
+f.mu = cellfun(@nanmean,fval);

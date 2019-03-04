@@ -16,9 +16,9 @@ if nargin<3, dt = []; end
 if isempty(dt), dt = 1; end
 n = length(xt);
 if isempty(kernel), kernel = 'Gaussian'; end
-if isempty(bandwidth), bandwidth = (2.5/100)*range(xt); end % kernel bandwidth is 2.5% of the total range
+if isempty(bandwidth), bandwidth = (5/100)*range(xt); end % kernel bandwidth is 5% of the total range (2.5% is standard)
 if isempty(nbins), nbins = round(range(xt)/bandwidth); end % values of x at which to estimate f(x) -- 1 point per bandwidth
-if ~isempty(nbootstraps), compute_sem = 1; end
+if ~isempty(nbootstraps), compute_sem = 1; else, compute_sem = 0; end
 
 %% define kernel function
 if strcmp(kernel,'Uniform'), kernel = @(x,mu,bandwidth) (1/2)*(abs((x - mu)/bandwidth) < 1);
